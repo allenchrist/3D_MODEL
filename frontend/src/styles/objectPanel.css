@@ -1,0 +1,216 @@
+/* ============================================================
+   OBJECT PANEL — Right-side detected objects list
+   ============================================================ */
+
+.objectPanel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.objectPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.objectPanelTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.objectPanelTitleText {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.objectPanelCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--primary-dim);
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 700;
+  border: 1px solid rgba(0,212,255,0.2);
+}
+
+.objectPanelScroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Object Card ────────────────────────────────────────────── */
+.objectCard {
+  background: var(--bg-panel-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 11px 12px;
+  cursor: default;
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    background var(--transition-fast);
+  animation: fadeSlideIn 0.3s ease both;
+}
+
+.objectCard:hover {
+  border-color: var(--border-active);
+  background: var(--bg-glass-hover);
+  box-shadow: 0 0 14px rgba(0,212,255,0.08);
+}
+
+.objectCardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.objectCardId {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.objectTypeIcon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.objectCardIdText {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.03em;
+}
+
+.objectCardIdSub {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+}
+
+/* ── Confidence bar ─────────────────────────────────────────── */
+.objectConfBar {
+  margin: 8px 0 6px;
+}
+
+.objectConfLabel {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  letter-spacing: 0.04em;
+}
+
+.objectConfValue {
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+.objectConfTrack {
+  height: 3px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.objectConfFill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+.objectConfFill.high    { background: linear-gradient(90deg, var(--success), #00cc77); }
+.objectConfFill.medium  { background: linear-gradient(90deg, var(--warning), #e6a800); }
+.objectConfFill.low     { background: linear-gradient(90deg, var(--danger),  #cc3333); }
+
+/* ── Data grid ──────────────────────────────────────────────── */
+.objectDataGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px 8px;
+  margin-top: 6px;
+}
+
+.objectDataItem {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.objectDataLabel {
+  font-size: 9px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.objectDataValue {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.objectDataValue.highlight {
+  color: var(--primary);
+}
+
+/* ── Risk badge ─────────────────────────────────────────────── */
+.objectRiskBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 12px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-top: 7px;
+}
+
+.objectRiskBadge.low    { background: var(--success-dim); color: var(--success); border: 1px solid rgba(0,255,153,0.2); }
+.objectRiskBadge.medium { background: var(--warning-dim); color: var(--warning); border: 1px solid rgba(255,193,7,0.2); }
+.objectRiskBadge.high   { background: var(--danger-dim);  color: var(--danger);  border: 1px solid rgba(255,77,79,0.2); }
+
+/* ── Signal strength ────────────────────────────────────────── */
+.signalBars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+}
+
+.signalBar {
+  width: 3px;
+  border-radius: 1px;
+  background: var(--text-muted);
+  transition: background var(--transition-fast);
+}
+
+.signalBar.active { background: var(--success); }
+
+.signalBar:nth-child(1) { height: 30%; }
+.signalBar:nth-child(2) { height: 55%; }
+.signalBar:nth-child(3) { height: 75%; }
+.signalBar:nth-child(4) { height: 100%; }

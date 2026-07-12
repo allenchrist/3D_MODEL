@@ -1,0 +1,114 @@
+/* ============================================================
+   STATUS BAR — Bottom automotive telemetry strip
+   ============================================================ */
+
+.statusBar {
+  display: flex;
+  align-items: center;
+  height: var(--statusbar-h);
+  padding: 0 16px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid var(--border);
+  gap: 0;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.statusItem {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 12px;
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.statusItem:first-child { padding-left: 0; }
+.statusItem:last-child  { border-right: none; }
+
+.statusItemLabel {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.statusItemValue {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.statusItemValue.primary { color: var(--primary); }
+.statusItemValue.success { color: var(--success); }
+.statusItemValue.warning { color: var(--warning); }
+.statusItemValue.danger  { color: var(--danger); }
+
+.statusItemIcon {
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* ── Sensor dot indicator ───────────────────────────────────── */
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.statusDot.online  { background: var(--success); box-shadow: 0 0 5px var(--success); }
+.statusDot.offline { background: var(--danger);  box-shadow: 0 0 5px var(--danger); }
+.statusDot.standby { background: var(--warning); box-shadow: 0 0 5px var(--warning); }
+
+/* ── Health indicator (rightmost) ──────────────────────────── */
+.statusHealth {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.statusHealthLabel {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.statusHealthLabel.success { color: var(--success); }
+.statusHealthLabel.warning { color: var(--warning); }
+.statusHealthLabel.danger  { color: var(--danger); }
+
+/* ── Usage bars (CPU/GPU/MEM) ───────────────────────────────── */
+.statusUsageBar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.statusUsageTrack {
+  width: 36px;
+  height: 3px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.statusUsageFill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+.statusUsageFill.low    { background: var(--success); }
+.statusUsageFill.medium { background: var(--warning); }
+.statusUsageFill.high   { background: var(--danger); }

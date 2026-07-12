@@ -1,0 +1,110 @@
+/* ============================================================
+   SIDEBAR — Icon-based automotive navigation
+   ============================================================ */
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: var(--sidebar-w);
+  height: 100%;
+  padding: 12px 0;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.sidebarItem {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  gap: 3px;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+  outline: none;
+}
+
+.sidebarItem:hover {
+  background: var(--primary-dim);
+  color: var(--primary);
+  border-color: rgba(0,212,255,0.15);
+}
+
+.sidebarItem.active {
+  background: var(--primary-dim);
+  color: var(--primary);
+  border-color: var(--border-active);
+  box-shadow: 0 0 12px var(--primary-glow);
+}
+
+.sidebarItem.active::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 24px;
+  border-radius: 0 3px 3px 0;
+  background: var(--primary);
+  box-shadow: 0 0 8px var(--primary);
+}
+
+.sidebarIcon {
+  font-size: 18px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebarLabel {
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+/* ── Tooltip ────────────────────────────────────────────────── */
+.sidebarItem[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--bg-panel-alt);
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 200;
+  box-shadow: var(--shadow-panel);
+}
+
+/* ── Spacer pushes settings to bottom ──────────────────────── */
+.sidebarSpacer {
+  flex: 1;
+}
+
+.sidebarDivider {
+  width: 32px;
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}

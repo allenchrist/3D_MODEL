@@ -1,0 +1,141 @@
+/* ============================================================
+   DASHBOARD LAYOUT — CSS Grid automotive HMI shell
+   ============================================================ */
+
+.dashRoot {
+  display: grid;
+  grid-template-rows: var(--navbar-h) 1fr var(--statusbar-h);
+  grid-template-columns: 1fr;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg-root);
+}
+
+/* ── Main body row (sidebar + center + right panel) ─────────── */
+.dashMain {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr var(--panel-right-w);
+  grid-template-rows: 1fr;
+  overflow: hidden;
+  gap: 0;
+}
+
+/* ── Sidebar wrapper ────────────────────────────────────────── */
+.dashSidebarWrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border-right: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+
+/* ── Center 3D area ─────────────────────────────────────────── */
+.dashCenter {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 10px;
+}
+
+.dashCenterCard {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── Scene canvas wrapper ───────────────────────────────────── */
+.sceneCanvasWrap {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  min-height: 0;
+}
+
+/* ── Scene placeholder (shown before Three.js mounts) ───────── */
+.scenePlaceholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  background: radial-gradient(ellipse at 50% 60%, rgba(0,212,255,0.04) 0%, transparent 70%),
+              linear-gradient(180deg, #0d1219 0%, #0B0F14 100%);
+}
+
+.scenePlaceholder::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+
+.scenePlaceholderInner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  z-index: 1;
+  animation: fadeSlideIn 0.6s ease both;
+}
+
+.scenePlaceholderIcon {
+  font-size: 48px;
+  opacity: 0.18;
+  filter: drop-shadow(0 0 16px var(--primary));
+}
+
+.scenePlaceholderTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+}
+
+.scenePlaceholderSub {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  max-width: 480px;
+  line-height: 1.7;
+  letter-spacing: 0.02em;
+}
+
+.scenePlaceholderTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.scenePlaceholderTag {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--primary-dim);
+  color: var(--primary);
+  border: 1px solid rgba(0,212,255,0.2);
+}
+
+/* ── Right panel wrapper ────────────────────────────────────── */
+.dashRightWrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border-left: 1px solid var(--border);
+  background: var(--bg-panel);
+  overflow: hidden;
+}

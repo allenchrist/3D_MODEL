@@ -1,0 +1,89 @@
+/* ============================================================
+   SCENE — Three.js canvas container and HUD overlays
+   ============================================================ */
+
+/* ── Canvas fills its parent completely ─────────────────────── */
+.sceneCanvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+/* ── HUD overlay layer (future: detection boxes, labels) ────── */
+.sceneHudOverlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* ── Corner brackets (decorative HMI framing) ───────────────── */
+.sceneCorner {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  opacity: 0.5;
+}
+
+.sceneCorner.tl { top: 8px;    left: 8px;    border-top: 1.5px solid var(--primary); border-left: 1.5px solid var(--primary); }
+.sceneCorner.tr { top: 8px;    right: 8px;   border-top: 1.5px solid var(--primary); border-right: 1.5px solid var(--primary); }
+.sceneCorner.bl { bottom: 8px; left: 8px;    border-bottom: 1.5px solid var(--primary); border-left: 1.5px solid var(--primary); }
+.sceneCorner.br { bottom: 8px; right: 8px;   border-bottom: 1.5px solid var(--primary); border-right: 1.5px solid var(--primary); }
+
+/* ── Scene info strip (bottom-left of canvas) ───────────────── */
+.sceneInfoStrip {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  display: flex;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.sceneInfoChip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  background: rgba(11, 15, 20, 0.75);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-secondary);
+  backdrop-filter: blur(8px);
+}
+
+.sceneInfoChip .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 4px var(--success);
+}
+
+/* ── Loading overlay ────────────────────────────────────────── */
+.sceneLoading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(11, 15, 20, 0.85);
+  z-index: 20;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+.sceneLoadingSpinner {
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
