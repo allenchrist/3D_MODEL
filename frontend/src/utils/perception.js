@@ -1,62 +1,54 @@
 /**
  * perception.js — Pure utility functions for perception data processing.
- * These are designed to be reused across components, hooks, and future
- * AI integration layers without side effects.
+ * Used by hooks, components, and the Scene3D rendering layer.
  */
 
 /* ── Constants ──────────────────────────────────────────────── */
-export const RISK_DISTANCE = { HIGH: 20, MEDIUM: 45 };
+export const RISK_DISTANCE  = { HIGH: 20,   MEDIUM: 45   };
 export const CONF_THRESHOLD = { HIGH: 0.85, MEDIUM: 0.65 };
 
-/**
- * Classify risk level based on distance and confidence.
- * @param {number} distanceM
- * @param {number} confidence
- * @returns {'high'|'medium'|'low'}
- */
+// YOLO COCO class name → UI display type
+const CLASS_TYPE_MAP = {
+  car:        'Car',
+  truck:      'Truck',
+  bus:        'Bus',
+  motorcycle: 'Motorcycle',
+  bicycle:    'Cyclist',
+  person:     'Pedestrian',
+};
+
+// Approximate pixel-to-metre scale for the road video.
+// A typical car (~1.8 m wide) spans ~80 px at 30 m distance.
+// Future: replace with MiDaS depth map values.
+const PIXELS_PER_METRE = 2.8;
+
+// Cardinal directions cycled per object index
+const DIRECTIONS = [
+  'North', 'North-East', 'East', 'South-East',
+  'South', 'South-West', 'West', 'North-West',
+];
+
+/* ── General helpers ────────────────────────────────────────── */
+export function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
+}
+
 export function classifyRisk(distanceM, confidence) {
   if (distanceM < RISK_DISTANCE.HIGH || confidence < CONF_THRESHOLD.MEDIUM) return 'high';
   if (distanceM < RISK_DISTANCE.MEDIUM) return 'medium';
   return 'low';
 }
 
-/**
- * Convert m/s to km/h.
- * @param {number} mps
- * @returns {number}
- */
 export function mpsToKmh(mps) {
   return mps * 3.6;
 }
 
-/**
- * Format distance with appropriate unit.
- * @param {number} meters
- * @returns {string}
- */
 export function formatDistance(meters) {
   return meters >= 1000
     ? `${(meters / 1000).toFixed(2)} km`
     : `${meters.toFixed(1)} m`;
 }
 
-/**
- * Clamp a number between min and max.
- * @param {number} n
- * @param {number} min
- * @param {number} max
- * @returns {number}
- */
-export function clamp(n, min, max) {
-  return Math.max(min, Math.min(max, n));
-}
-
-/**
- * Compute a 2D direction unit vector from a cardinal label.
- * Prepared for future predictive trajectory rendering.
- * @param {string} label
- * @returns {{ x: number, y: number }}
- */
 export function directionToVector(label) {
   const MAP = {
     'North':      { x:  0,     y: -1     },
@@ -71,14 +63,67 @@ export function directionToVector(label) {
   return MAP[label] ?? { x: 0, y: 0 };
 }
 
-/**
- * Generate a unique perception object ID.
- * Future: replace with backend-assigned ByteTrack IDs.
- * @param {string} type
- * @param {number} index
- * @returns {string}
- */
 export function generateObjectId(type, index) {
   const prefix = type.slice(0, 3).toLowerCase();
   return `${prefix}-${String(index).padStart(2, '0')}`;
+}
+
+/**
+ * transformApiFrame — Convert one YOLO FrameDetection from the FastAPI
+ * response into the array of UI object shapes that ObjectPanel and
+ * Scene3D consume.
+ *
+ * YOLO gives us:  { class, confidence, bbox: { x1, y1, x2, y2 } }
+ * UI needs:       { id, type, name, distanceM, speedMps, direction,
+ *                   confidence, status, bbox, rawClass }
+ *
+ * Distance is estimated from bbox height (taller bbox = closer object).
+ * Speed is estimated from confidence as a proxy until ByteTrack is added.
+ *
+ * @param {object} frame — FrameDetection from API ({ frame, objects })
+ * @returns {Array}      — Array of UI-ready object descriptors
+ */
+export function transformApiFrame(frame) {
+  if (!frame?.objects?.length) return [];
+
+  const frameW = frame.frame_w ?? 640;
+  const frameH = frame.frame_h ?? 480;
+
+  return frame.objects.map((det, idx) => {
+    // API serialises "class" as "class" in JSON; Pydantic alias keeps it
+    const rawClass = det.class ?? det.cls ?? 'unknown';
+    const type     = CLASS_TYPE_MAP[rawClass.toLowerCase()] ?? 'Unknown';
+
+    const { x1, y1, x2, y2 } = det.bbox;
+
+    // Estimate distance from bbox height: taller = closer
+    const bboxHeight = Math.abs(y2 - y1);
+    const distanceM  = clamp(
+      bboxHeight > 0 ? 1000 / (bboxHeight * PIXELS_PER_METRE) : 50,
+      1,
+      120
+    );
+
+    // Rough speed proxy from confidence until ByteTrack velocity is available
+    const speedMps = clamp(det.confidence * 12, 0, 30);
+
+    const status =
+      det.confidence >= CONF_THRESHOLD.HIGH   ? 'Tracking'    :
+      det.confidence >= CONF_THRESHOLD.MEDIUM ? 'Caution'     :
+                                                'Lost Signal';
+
+    return {
+      id:         `${rawClass}-f${frame.frame}-${idx}`,
+      type,
+      name:       `${type} ${String(idx + 1).padStart(2, '0')}`,
+      distanceM,
+      speedMps,
+      direction:  DIRECTIONS[idx % DIRECTIONS.length],
+      confidence: det.confidence,
+      status,
+      // Raw YOLO bbox preserved for Scene3D 3D box rendering
+      bbox:       { x1, y1, x2, y2, frameW, frameH },
+      rawClass,
+    };
+  });
 }

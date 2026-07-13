@@ -14,12 +14,11 @@
 import axios from 'axios';
 
 /* ── Base configuration ─────────────────────────────────────── */
-const BASE_URL     = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
-const API_TIMEOUT  = 8000;
-const API_VERSION  = '/api/v1';
+const BASE_URL    = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
+const API_TIMEOUT = 8000;
 
 const apiClient = axios.create({
-  baseURL: `${BASE_URL}${API_VERSION}`,
+  baseURL: BASE_URL,
   timeout: API_TIMEOUT,
   headers: {
     'Content-Type': 'application/json',
@@ -47,17 +46,23 @@ apiClient.interceptors.response.use(
 
 /* ── Perception endpoints ───────────────────────────────────── */
 export const perceptionApi = {
-  /** Fetch latest YOLO + ByteTrack detection frame */
-  getDetections:    () => apiClient.get('/perception/detections'),
+  /** Fetch latest YOLO video detection results — GET /detections */
+  getDetections: () => apiClient.get('/detections'),
 
-  /** Fetch MiDaS depth estimation for current frame */
-  getDepthMap:      () => apiClient.get('/perception/depth'),
+  /** Fetch latest live webcam detections — GET /detections/live */
+  getLiveDetections: () => apiClient.get('/detections/live'),
 
-  /** Fetch risk prediction scores for detected objects */
-  getRiskScores:    () => apiClient.get('/perception/risk'),
+  /** Liveness check — GET /health */
+  getHealth:     () => apiClient.get('/health'),
 
-  /** Fetch full shared scene intelligence payload */
-  getSharedScene:   () => apiClient.get('/perception/scene'),
+  /** Future: MiDaS depth estimation */
+  getDepthMap:   () => apiClient.get('/perception/depth'),
+
+  /** Future: risk prediction scores */
+  getRiskScores: () => apiClient.get('/perception/risk'),
+
+  /** Future: full shared scene intelligence payload */
+  getSharedScene: () => apiClient.get('/perception/scene'),
 };
 
 /* ── Vehicle endpoints ──────────────────────────────────────── */
