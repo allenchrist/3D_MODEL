@@ -113,7 +113,7 @@ export function transformApiFrame(frame) {
                                                 'Lost Signal';
 
     return {
-      id:         `${rawClass}-f${frame.frame}-${idx}`,
+      id:         `${rawClass}-${idx}`,
       type,
       name:       `${type} ${String(idx + 1).padStart(2, '0')}`,
       distanceM,

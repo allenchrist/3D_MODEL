@@ -1,58 +1,34 @@
-/**
- * Scene3D — Core 3D rendering engine for the Collaborative Perception Platform.
- *
- * Data flow:
- *   Dashboard → usePerceptionData → objects → Scene3D → PerceptionObjects
- *
- * Each detected object from the FastAPI /detections endpoint is rendered
- * as a colour-coded 3D bounding box on the road plane.
- *
- * Future integration points (prepared):
- *   - GLTF vehicle models replacing box geometry
- *   - MiDaS depth mesh overlay
- *   - ByteTrack trajectory trails
- *   - Risk heatmap layer
- *   - V2V collaborative objects
- *   - Digital Twin
- */
-import React, { memo, Suspense, useCallback, useRef } from 'react';
+import { memo, useRef, useCallback, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Stats } from '@react-three/drei';
-import { Environment }        from './Environment';
-import { Lighting }           from './Lighting';
-import { Ground }             from './Ground';
-import { Road }               from './Road';
-import { CameraController }   from './CameraController';
-import { ModelManager }       from './ModelManager';
+import { Environment }      from './Environment';
+import { Lighting }         from './Lighting';
+import { Ground }           from './Ground';
+import { Road }             from './Road';
+import { CameraController } from './CameraController';
+import { ModelManager }     from './ModelManager';
 import '../styles/scene.css';
 
-/* ── Canvas configuration ───────────────────────────────────── */
-const CANVAS_CONFIG = {
-  camera: {
-    fov:      55,
-    near:     0.1,
-    far:      500,
-    position: [0, 18, 32],
-  },
-  gl: {
-    antialias:       true,
-    powerPreference: 'high-performance',
-    alpha:           false,
-  },
-  shadows: true,
-  dpr: [1, 2],
-};
+/* ── Canvas config — defined outside component so reference is stable ── */
+const CAMERA = { fov: 55, near: 0.1, far: 500, position: [0, 18, 32] };
+const GL     = { antialias: true, powerPreference: 'high-performance', alpha: false };
 
-/* ── Scene fallback ─────────────────────────────────────────── */
-const SceneFallback = () => (
-  <mesh>
-    <boxGeometry args={[1, 1, 1]} />
-    <meshBasicMaterial color="#00D4FF" wireframe />
-  </mesh>
-);
+/* ── Static scene — never re-renders when detections change ─── */
+const StaticScene = memo(() => (
+  <>
+    <Environment />
+    <Lighting />
+    <Suspense fallback={null}>
+      <Ground />
+      <Road />
+    </Suspense>
+    <CameraController />
+  </>
+));
+StaticScene.displayName = 'StaticScene';
 
 /* ── HUD overlay ────────────────────────────────────────────── */
-const SceneHudOverlay = memo(({ objectCount, isLive }) => (
+const HudOverlay = memo(({ objectCount, isLive }) => (
   <div className="sceneHudOverlay" aria-hidden="true">
     <div className="sceneCorner tl" />
     <div className="sceneCorner tr" />
@@ -70,55 +46,50 @@ const SceneHudOverlay = memo(({ objectCount, isLive }) => (
     </div>
   </div>
 ));
-
-SceneHudOverlay.displayName = 'SceneHudOverlay';
+HudOverlay.displayName = 'HudOverlay';
 
 /* ── Scene3D ────────────────────────────────────────────────── */
 export const Scene3D = memo(({
-  detectedObjects = [],   // UI-ready objects from usePerceptionData
-  depthMap        = null, // eslint-disable-line no-unused-vars — future MiDaS
-  riskHeatmap     = null, // eslint-disable-line no-unused-vars — future risk layer
-  v2vObjects      = [],   // eslint-disable-line no-unused-vars — future V2V
-  sharedScene     = null, // eslint-disable-line no-unused-vars — future shared intelligence
+  detectedObjects = [],
   isLive          = false,
   showStats       = false,
+  // future props — accepted but unused until implemented
+  depthMap    = null,   // eslint-disable-line no-unused-vars
+  riskHeatmap = null,   // eslint-disable-line no-unused-vars
+  v2vObjects  = [],     // eslint-disable-line no-unused-vars
+  sharedScene = null,   // eslint-disable-line no-unused-vars
 }) => {
-  const canvasRef = useRef(null);
-
   const onCreated = useCallback(({ gl }) => {
     gl.shadowMap.enabled = true;
-    gl.shadowMap.type    = 2; // THREE.PCFSoftShadowMap
+    gl.shadowMap.type    = 2; // PCFSoftShadowMap
   }, []);
 
   return (
-    <div className="sceneCanvasWrap" ref={canvasRef}>
+    <div className="sceneCanvasWrap">
+      {/*
+        Canvas is mounted once and never remounts.
+        detectedObjects is NOT passed into Canvas props — it goes
+        directly to ModelManager inside, so Canvas itself never
+        sees a prop change and never re-evaluates.
+      */}
       <Canvas
         className="sceneCanvas"
-        camera={CANVAS_CONFIG.camera}
-        gl={CANVAS_CONFIG.gl}
-        shadows={CANVAS_CONFIG.shadows}
-        dpr={CANVAS_CONFIG.dpr}
+        camera={CAMERA}
+        gl={GL}
+        shadows
+        dpr={[1, 2]}
         onCreated={onCreated}
       >
-        <Environment />
-        <Lighting />
+        {/* Road, ground, lights, camera — mounted once, never touched again */}
+        <StaticScene />
 
-        <Suspense fallback={<SceneFallback />}>
-          <Ground />
-          <Road />
+        {/* Detection objects — update position only, never recreate Canvas */}
+        <ModelManager objects={detectedObjects} />
 
-          {/* ── Live YOLO detections rendered as GLB models ── */}
-          <ModelManager objects={detectedObjects} />
-        </Suspense>
-
-        <CameraController />
         {showStats && <Stats />}
       </Canvas>
 
-      <SceneHudOverlay
-        objectCount={detectedObjects.length}
-        isLive={isLive}
-      />
+      <HudOverlay objectCount={detectedObjects.length} isLive={isLive} />
     </div>
   );
 });

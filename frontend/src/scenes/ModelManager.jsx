@@ -1,129 +1,175 @@
-/**
- * ModelManager — Loads and places a GLB model for each YOLO detection.
- *
- * Drop GLB files into:  frontend/src/assets/models/
- *   car.glb  truck.glb  bus.glb  person.glb  motorcycle.glb  traffic_light.glb
- *
- * If a GLB is missing the component falls back to a wireframe box so the
- * scene never crashes during development.
- */
-import React, { memo, useMemo, Suspense } from 'react';
-import { useGLTF } from '@react-three/drei';
-import { Text }    from '@react-three/drei';
-import * as THREE  from 'three';
+import { memo, useRef, Suspense, useEffect } from 'react';
+import { useGLTF, Text } from '@react-three/drei';
+import { useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
 
 /* ── Model registry ─────────────────────────────────────────── */
 const MODEL_CONFIG = {
-  Car:           { path: '/models/car.glb',           scale: 0.8,  rotY: 0 },
-  Truck:         { path: '/models/truck.glb',         scale: 1.5,  rotY: 0 },
-  Bus:           { path: '/models/bus.glb',           scale: 2.0,  rotY: 0 },
-  Pedestrian:    { path: '/models/person.glb',        scale: 0.4,  rotY: 0 },
-  Motorcycle:    { path: '/models/motorcycle.glb',    scale: 0.6,  rotY: 0 },
-  Cyclist:       { path: '/models/motorcycle.glb',    scale: 0.5,  rotY: 0 },
-  Traffic_Light: { path: '/models/traffic_light.glb', scale: 0.5,  rotY: 0 },
+  Car:        { path: '/models/car.glb',        scale: 0.8, rotY: 0 },
+  Truck:      { path: '/models/truck.glb',      scale: 1.5, rotY: 0 },
+  Bus:        { path: '/models/bus.glb',        scale: 2.0, rotY: 0 },
+  Pedestrian: { path: '/models/person.glb',     scale: 0.4, rotY: 0 },
+  Motorcycle: { path: '/models/motorcycle.glb', scale: 0.6, rotY: 0 },
+  Cyclist:    { path: '/models/motorcycle.glb', scale: 0.5, rotY: 0 },
 };
+
+Object.values(MODEL_CONFIG).forEach(({ path }) => useGLTF.preload(path));
 
 const DEFAULT_CONFIG = { scale: 1.0, rotY: 0 };
 
-/* ── Type colours (label + fallback box) ────────────────────── */
 const TYPE_COLORS = {
-  Car:           '#00D4FF',
-  Truck:         '#FFC107',
-  Bus:           '#FF9800',
-  Motorcycle:    '#00FF99',
-  Cyclist:       '#00FF99',
-  Pedestrian:    '#FF4D4F',
-  Traffic_Light: '#FFFF00',
-  Unknown:       '#9AA4B2',
+  Car:        '#00D4FF',
+  Truck:      '#FFC107',
+  Bus:        '#FF9800',
+  Motorcycle: '#00FF99',
+  Cyclist:    '#00FF99',
+  Pedestrian: '#FF4D4F',
+  Unknown:    '#9AA4B2',
 };
 
-/* ── Object height estimates (metres) ───────────────────────── */
 const TYPE_HEIGHTS = {
-  Car:           1.5,
-  Truck:         3.2,
-  Bus:           3.0,
-  Motorcycle:    1.2,
-  Cyclist:       1.8,
-  Pedestrian:    1.75,
-  Traffic_Light: 2.5,
-  Unknown:       1.5,
+  Car:        1.5,
+  Truck:      3.2,
+  Bus:        3.0,
+  Motorcycle: 1.2,
+  Cyclist:    1.8,
+  Pedestrian: 1.75,
+  Unknown:    1.5,
 };
 
-/* ── Video / road constants (must match PerceptionObjects) ───── */
-const ROAD_WORLD_W = 14;
-const ROAD_WORLD_L = 160;
+const ROAD_W = 14;
+const ROAD_L = 160;
+const LERP   = 0.15;
 
 /* ── Coordinate mapper ──────────────────────────────────────── */
-export function bboxToWorld(bbox, type) {
+function bboxToWorld(bbox, type) {
   const { x1, y1, x2, y2 } = bbox;
-  const videoW = bbox.frameW ?? 640;
-  const videoH = bbox.frameH ?? 480;
+  const vw = bbox.frameW ?? 640;
+  const vh = bbox.frameH ?? 480;
 
-  const normX = ((x1 + x2) / 2) / videoW;
-  const normZ = ((y1 + y2) / 2) / videoH;
-  const normW = Math.abs(x2 - x1) / videoW;
+  if (!isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2) || vw === 0 || vh === 0) {
+    const h = TYPE_HEIGHTS[type] ?? 1.5;
+    return { x: 0, y: h / 2, z: 0, w: 1, h, d: 0.6 };
+  }
 
-  const worldX = (normX - 0.5) * ROAD_WORLD_W;
-  const worldZ = (normZ - 0.5) * -ROAD_WORLD_L * 0.6;
-  const worldW = Math.max(normW * ROAD_WORLD_W, 0.8);
-  const worldH = TYPE_HEIGHTS[type] ?? 1.5;
-  const worldD = worldW * 0.6;
+  const cx = (x1 + x2) / 2;
+  const cy = (y1 + y2) / 2;
+  const bw = Math.abs(x2 - x1);
+  const h  = TYPE_HEIGHTS[type] ?? 1.5;
+  const ww = Math.max((bw / vw) * ROAD_W, 0.8);
 
-  return { x: worldX, y: worldH / 2, z: worldZ, w: worldW, h: worldH, d: worldD };
+  return {
+    x: Math.max(-ROAD_W,     Math.min(ROAD_W,     (cx / vw - 0.5) * ROAD_W)),
+    y: h / 2,
+    z: Math.max(-ROAD_L / 2, Math.min(ROAD_L / 2, (cy / vh - 0.5) * -ROAD_L * 0.6)),
+    w: ww,
+    h,
+    d: ww * 0.6,
+  };
 }
 
-/* ── Fallback box (shown while GLB loads or if file missing) ── */
-const FallbackBox = memo(({ pos, color }) => {
-  const args = useMemo(() => [pos.w, pos.h, pos.d], [pos.w, pos.h, pos.d]);
+/* ── Fallback wireframe box ─────────────────────────────────── */
+function FallbackBox({ w, h, d, color }) {
   return (
     <group>
       <mesh>
-        <boxGeometry args={args} />
-        <meshBasicMaterial color={color} transparent opacity={0.12} depthWrite={false} />
+        <boxGeometry args={[w, h, d]} />
+        <meshBasicMaterial color={color} transparent opacity={0.15} depthWrite={false} />
       </mesh>
       <lineSegments>
-        <edgesGeometry args={[new THREE.BoxGeometry(...args)]} />
+        <edgesGeometry args={[new THREE.BoxGeometry(w, h, d)]} />
         <lineBasicMaterial color={color} />
       </lineSegments>
     </group>
   );
-});
-FallbackBox.displayName = 'FallbackBox';
+}
 
-/* ── GLB model inner (called only when file exists) ─────────── */
-const GlbModel = memo(({ path, scale, rotY }) => {
+/* ── GLB inner ───────────────────────────────────────────────── */
+/*
+  FIX for "only one object visible":
+  Each GlbInner instance gets a unique clone by storing it in a ref
+  that is keyed to THIS component instance — not shared across instances.
+  useGLTF returns the same cached scene for the same path, so we must
+  clone it independently for every mounted instance.
+  The clone is created once (ref guard) and disposed on unmount.
+*/
+function GlbInner({ path, scale, rotY }) {
   const { scene } = useGLTF(path);
-  const cloned     = useMemo(() => scene.clone(true), [scene]);
-  return <primitive object={cloned} scale={scale} rotation={[0, rotY, 0]} />;
-});
-GlbModel.displayName = 'GlbModel';
+  const cloneRef  = useRef(null);
 
-/* ── Single detected object ─────────────────────────────────── */
-const DetectedObject = memo(({ object }) => {
-  const { type, name, confidence, bbox, status } = object;
+  // Create clone once per mount
+  if (!cloneRef.current) {
+    cloneRef.current = scene.clone(true);
+  }
 
-  const cfg   = MODEL_CONFIG[type] ?? DEFAULT_CONFIG;
-  const color = TYPE_COLORS[type]  ?? TYPE_COLORS.Unknown;
-  const pos   = useMemo(() => bboxToWorld(bbox, type), [bbox, type]);
-
-  const labelOpacity = status === 'Lost Signal' ? 0.4 : 1;
+  // Dispose clone when this instance unmounts to free GPU memory
+  useEffect(() => {
+    return () => {
+      if (cloneRef.current) {
+        cloneRef.current.traverse((obj) => {
+          if (obj.geometry) obj.geometry.dispose();
+          if (obj.material) {
+            if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose());
+            else obj.material.dispose();
+          }
+        });
+        cloneRef.current = null;
+      }
+    };
+  }, []);
 
   return (
-    <group position={[pos.x, pos.y, pos.z]}>
-      <Suspense fallback={<FallbackBox pos={pos} color={color} />}>
-        <GlbModel path={cfg.path} scale={cfg.scale} rotY={cfg.rotY} />
-      </Suspense>
+    <primitive
+      object={cloneRef.current}
+      scale={scale}
+      rotation={[0, rotY, 0]}
+    />
+  );
+}
 
-      {/* Floating label */}
+/* ── Single detected object ─────────────────────────────────── */
+/*
+  FIX for "model doesn't follow me":
+  Removed the over-strict memo comparator entirely.
+  React.memo with no comparator does a shallow prop comparison —
+  since `object` is a new reference every poll (new array from useState),
+  DetectedObject will re-render on every poll, which is correct.
+  tgtPos.current.set() will always receive the latest bbox values.
+  useFrame lerps toward the updated target every animation frame.
+*/
+const DetectedObject = memo(({ object }) => {
+  const { type, name, confidence, bbox, status } = object;
+  const cfg   = MODEL_CONFIG[type] ?? DEFAULT_CONFIG;
+  const color = TYPE_COLORS[type]  ?? TYPE_COLORS.Unknown;
+  const tgt   = bboxToWorld(bbox, type);
+
+  const groupRef = useRef(null);
+  const curPos   = useRef(new THREE.Vector3(tgt.x, tgt.y, tgt.z));
+  const tgtPos   = useRef(new THREE.Vector3(tgt.x, tgt.y, tgt.z));
+
+  // Always update target to latest position — runs on every re-render
+  tgtPos.current.set(tgt.x, tgt.y, tgt.z);
+
+  useFrame(() => {
+    if (!groupRef.current) return;
+    curPos.current.lerp(tgtPos.current, LERP);
+    groupRef.current.position.copy(curPos.current);
+  });
+
+  return (
+    <group ref={groupRef}>
+      <Suspense fallback={<FallbackBox w={tgt.w} h={tgt.h} d={tgt.d} color={color} />}>
+        <GlbInner path={cfg.path} scale={cfg.scale} rotY={cfg.rotY} />
+      </Suspense>
       <Text
-        position={[0, pos.h / 2 + 0.5, 0]}
+        position={[0, tgt.h / 2 + 0.6, 0]}
         fontSize={0.45}
         color={color}
         anchorX="center"
         anchorY="bottom"
         outlineWidth={0.04}
         outlineColor="#0B0F14"
-        fillOpacity={labelOpacity}
+        fillOpacity={status === 'Lost Signal' ? 0.4 : 1}
       >
         {`${name}  ${(confidence * 100).toFixed(0)}%`}
       </Text>
@@ -134,10 +180,13 @@ DetectedObject.displayName = 'DetectedObject';
 
 /* ── ModelManager ───────────────────────────────────────────── */
 export const ModelManager = memo(({ objects = [] }) => {
-  if (!objects.length) return null;
+  const lastRef = useRef([]);
+  if (objects.length > 0) lastRef.current = objects;
+  const visible = objects.length > 0 ? objects : lastRef.current;
+  if (!visible.length) return null;
   return (
     <group name="model-manager">
-      {objects.map((obj) => (
+      {visible.map((obj) => (
         <DetectedObject key={obj.id} object={obj} />
       ))}
     </group>
