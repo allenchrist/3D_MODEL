@@ -1,4 +1,4 @@
-import { memo, useRef, useCallback, Suspense } from 'react';
+import React, { memo, useCallback, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Stats } from '@react-three/drei';
 import { Environment }      from './Environment';
@@ -48,6 +48,25 @@ const HudOverlay = memo(({ objectCount, isLive }) => (
 ));
 HudOverlay.displayName = 'HudOverlay';
 
+class ModelErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      // Keep Canvas alive; show nothing or a lightweight placeholder.
+      return null;
+    }
+    return this.props.children;
+  }
+}
+
 /* ── Scene3D ────────────────────────────────────────────────── */
 export const Scene3D = memo(({
   detectedObjects = [],
@@ -84,7 +103,9 @@ export const Scene3D = memo(({
         <StaticScene />
 
         {/* Detection objects — update position only, never recreate Canvas */}
-        <ModelManager objects={detectedObjects} />
+        <ModelErrorBoundary>
+          <ModelManager objects={detectedObjects} />
+        </ModelErrorBoundary>
 
         {showStats && <Stats />}
       </Canvas>

@@ -1,4 +1,4 @@
-import { memo, useRef, Suspense, useEffect } from 'react';
+import { memo, useRef, Suspense } from 'react';
 import { useGLTF, Text } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -102,21 +102,12 @@ function GlbInner({ path, scale, rotY }) {
     cloneRef.current = scene.clone(true);
   }
 
-  // Dispose clone when this instance unmounts to free GPU memory
-  useEffect(() => {
-    return () => {
-      if (cloneRef.current) {
-        cloneRef.current.traverse((obj) => {
-          if (obj.geometry) obj.geometry.dispose();
-          if (obj.material) {
-            if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose());
-            else obj.material.dispose();
-          }
-        });
-        cloneRef.current = null;
-      }
-    };
-  }, []);
+  // NOTE:
+  // Do NOT manually dispose geometries/materials here.
+  // GLTF scenes can share underlying GPU resources across clones/materials.
+  // Disposing them on unmount can break rendering globally,
+  // which matches the "scene goes blank when a new object comes in" symptom.
+  // We rely on three/r3f lifecycle + browser/GPU pressure instead.
 
   return (
     <primitive
@@ -180,13 +171,11 @@ DetectedObject.displayName = 'DetectedObject';
 
 /* ── ModelManager ───────────────────────────────────────────── */
 export const ModelManager = memo(({ objects = [] }) => {
-  const lastRef = useRef([]);
-  if (objects.length > 0) lastRef.current = objects;
-  const visible = objects.length > 0 ? objects : lastRef.current;
-  if (!visible.length) return null;
+  // IMPORTANT: Keep the container mounted so the scene never "goes blank".
+  // React will still unmount individual object instances when `objects` drops them.
   return (
     <group name="model-manager">
-      {visible.map((obj) => (
+      {objects.map((obj) => (
         <DetectedObject key={obj.id} object={obj} />
       ))}
     </group>

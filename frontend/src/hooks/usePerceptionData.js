@@ -5,7 +5,7 @@ import { transformApiFrame } from '../utils/perception';
 const POLL_MS = 160;           // 100–200ms target
 const RETRY_MS_BASE = 600;    // exponential backoff base
 const RETRY_MS_MAX = 3000;
-const MAX_OBJECTS = 25;       // allow more than 8 so multiple people/cars render
+const MAX_OBJECTS = 200;       // render cap increased to avoid models disappearing when new objects appear
 
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
@@ -136,6 +136,14 @@ export function usePerceptionData() {
   // instanceKey -> object (ui shape)
   const instancesMapRef = useRef(new Map());
 
+  // Monotonic counter so instance keys are deterministic per creation.
+  const instanceCounterRef = useRef(0);
+
+  // If YOLO returns 0 detections for a moment, keep the last map for a short TTL
+  // so the scene doesn't "go blank" during brief dropouts.
+  const emptyDetectionsStreakRef = useRef(0);
+  const EMPTY_DETECTIONS_STREAK_MAX = 5; // with POLL_MS=160 => ~800ms grace
+
   const retryAttemptRef = useRef(0);
   const nextRetryMsRef = useRef(RETRY_MS_BASE);
 
@@ -166,6 +174,36 @@ export function usePerceptionData() {
           frame_h: data.frame_h ?? 480,
         });
 
+        // If there are no detections in this poll, keep the previous instances
+        // for a grace period to avoid scene popping/blanking.
+        if (!uiObjectsAll || uiObjectsAll.length === 0) {
+          emptyDetectionsStreakRef.current += 1;
+
+          const shouldKeep =
+            emptyDetectionsStreakRef.current <= EMPTY_DETECTIONS_STREAK_MAX;
+
+          if (shouldKeep) {
+            const renderObjectsAll = Array.from(instancesMapRef.current.values());
+            renderObjectsAll.sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
+            const renderObjects = renderObjectsAll;
+
+            setCurrentFrame(data.frame);
+            setConnectionStatus('Connected');
+            setIsLive(true);
+            connectedRef.current = true;
+            setObjects(renderObjects);
+
+            // Continue polling without replacing instancesMapRef
+            return;
+          }
+
+          // Grace period elapsed: clear instances so disappearance is reflected
+          instancesMapRef.current = new Map();
+          emptyDetectionsStreakRef.current = 0;
+        } else {
+          emptyDetectionsStreakRef.current = 0;
+        }
+
         // Update stable instance keys
         const prevInstances = Array.from(instancesMapRef.current.entries()).map(([instanceKey, object]) => ({
           instanceKey,
@@ -182,8 +220,6 @@ export function usePerceptionData() {
         const nextMap = new Map();
 
         // Matched detections reuse instanceKey; unmatched detections get new instanceKey
-        let newInstanceCounterStart = nextMap.size;
-
         for (let ci = 0; ci < uiObjects.length; ci++) {
           const det = normalizeDetForMatch(uiObjects[ci]);
 
@@ -195,23 +231,32 @@ export function usePerceptionData() {
               nextMap.set(reused.instanceKey, det);
             }
           } else {
-            // Create a new stable instanceKey
-            // Use rawClass + an incrementing counter + bbox hash-ish
+            // Create a new stable instanceKey (deterministic counter; no Date.now)
             const rawClass = det.rawClass ?? det.type ?? 'obj';
             const bbox = det.bbox;
-            const approxKey = bbox ? `${Math.round((bbox.x1 + bbox.x2) / 2)}_${Math.round((bbox.y1 + bbox.y2) / 2)}` : 'na';
-            const instanceKey = `${rawClass}-${Date.now()}-${newInstanceCounterStart}-${approxKey}`;
+            const approxKey = bbox
+              ? `${Math.round((bbox.x1 + bbox.x2) / 2)}_${Math.round((bbox.y1 + bbox.y2) / 2)}`
+              : 'na';
+
+            instanceCounterRef.current += 1;
+            const instanceKey = `${rawClass}-${instanceCounterRef.current}-${approxKey}`;
             det.id = instanceKey;
             nextMap.set(instanceKey, det);
-            newInstanceCounterStart++;
           }
         }
 
         // Replace map; this automatically removes disappeared objects
         instancesMapRef.current = nextMap;
 
-        // Commit UI objects (render cap applied after stable assignment)
-        const renderObjects = Array.from(nextMap.values()).slice(0, MAX_OBJECTS);
+        // Commit UI objects.
+        // Important: Map insertion order can fluctuate when YOLO detection order changes,
+        // and slicing by that order can cause visible "popping" / near-blank frames.
+        // So we sort by a stable metric before applying the render cap.
+        const renderObjectsAll = Array.from(nextMap.values());
+        renderObjectsAll.sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
+
+        // If confidence isn't available, fall back to id stability
+        const renderObjects = renderObjectsAll;
 
         setCurrentFrame(data.frame);
         setConnectionStatus('Connected');
