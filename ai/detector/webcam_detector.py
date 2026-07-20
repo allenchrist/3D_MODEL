@@ -59,12 +59,61 @@ class WebcamDetector:
         print(f"[DEBUG] Webcam opened successfully — resolution: {w_cap} x {h_cap}")
 
         frame_number = 0
+        last_good_objects: list[dict] = []
+        last_good_w = w_cap
+        last_good_h = h_cap
+        last_good_frame_number = 0
+
+        # If the camera occasionally fails (MSMF/USB hiccups), keep the last
+        # good detections so the frontend scene remains stable.
+        consecutive_failures = 0
 
         while not self._stop.is_set():
             ret, frame = cap.read()
             if not ret:
-                print("[WebcamDetector] frame read failed — retrying")
+                consecutive_failures += 1
+                print(f"[WebcamDetector] frame read failed — retrying (fail #{consecutive_failures})")
+
+                # Fail-soft: keep previous detections + frame dimensions.
+                # (No inference performed on a broken frame.)
+                if last_good_frame_number > 0:
+                    store.update(
+                        last_good_objects,
+                        last_good_frame_number,
+                        frame_w=last_good_w,
+                        frame_h=last_good_h,
+                    )
+                    print("[DEBUG] DetectionStore kept last good detections (fail-soft)")
+                else:
+                    # Haven't got a good frame yet
+                    store.update(
+                        [],
+                        0,
+                        frame_w=last_good_w,
+                        frame_h=last_good_h,
+                    )
+
+                # Periodically try to reopen the webcam after repeated failures
+                if consecutive_failures % 25 == 0:
+                    try:
+                        cap.release()
+                    except Exception:
+                        pass
+
+                    print("[WebcamDetector] reopening webcam...")
+                    time.sleep(0.25)
+                    cap = cv2.VideoCapture(self.camera_index)
+                    if not cap.isOpened():
+                        print("[WebcamDetector] ERROR: Cannot reopen webcam yet")
+                        time.sleep(0.75)
+                    else:
+                        last_good_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)) or last_good_w
+                        last_good_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)) or last_good_h
+
                 continue
+
+            # Reset failure counter since we have a good frame now
+            consecutive_failures = 0
 
             frame_number += 1
             print(f"[DEBUG] Frame {frame_number}")
@@ -97,6 +146,12 @@ class WebcamDetector:
                 print("[DEBUG] Detected:")
                 for obj in objects:
                     print(f"         {obj['class']}  conf={obj['confidence']}")
+
+            # Update both store and last-good cache
+            last_good_objects = objects
+            last_good_w = w
+            last_good_h = h
+            last_good_frame_number = frame_number
 
             store.update(objects, frame_number, frame_w=w, frame_h=h)
             print("[DEBUG] DetectionStore updated")

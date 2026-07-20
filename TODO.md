@@ -1,0 +1,14 @@
+- [ ] Inspect current Three.js live perception pipeline (already inspected Scene3D, ModelManager, perception utils, Dashboard, Road, CameraController)
+- [ ] Rewrite `frontend/src/scenes/ModelManager.jsx`:
+  - [ ] Memoize pool slots so they do not re-render on each poll
+  - [ ] Cache GLB clones per model type and swap imperatively without remounting
+  - [ ] Implement nearest-neighbor assignment to keep stable instances across frames
+  - [ ] Fix image-space → world-space coordinate mapping using `bbox.frameW/frameH` and correct Z sign, with clamping to road bounds
+  - [ ] Smooth movement via lerp in `useFrame`
+  - [ ] Add per-slot error handling fallback placeholder without breaking canvas
+- [ ] Run frontend dev build/test to verify:
+  - [ ] Canvas never remounts
+  - [ ] Multiple simultaneous detections render simultaneously
+  - [ ] Objects persist (no blanking) across polls
+  - [ ] Movement direction matches webcam motion
+  - [ ] No React duplicate keys / no scene recreation
