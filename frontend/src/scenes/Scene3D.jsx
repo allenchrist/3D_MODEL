@@ -48,25 +48,6 @@ const HudOverlay = memo(({ objectCount, isLive }) => (
 ));
 HudOverlay.displayName = 'HudOverlay';
 
-class ModelErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-
-  render() {
-    if (this.state.hasError) {
-      // Keep Canvas alive; show nothing or a lightweight placeholder.
-      return null;
-    }
-    return this.props.children;
-  }
-}
-
 /* ── Scene3D ────────────────────────────────────────────────── */
 export const Scene3D = memo(({
   detectedObjects = [],
@@ -102,10 +83,8 @@ export const Scene3D = memo(({
         {/* Road, ground, lights, camera — mounted once, never touched again */}
         <StaticScene />
 
-        {/* Detection objects — update position only, never recreate Canvas */}
-        <ModelErrorBoundary>
-          <ModelManager objects={detectedObjects} />
-        </ModelErrorBoundary>
+        {/* Detection objects — code-generated 3D shapes, no GLB loading needed */}
+        <ModelManager objects={detectedObjects} />
 
         {showStats && <Stats />}
       </Canvas>
