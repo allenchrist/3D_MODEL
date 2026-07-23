@@ -1,12 +1,11 @@
 import React, { memo, useCallback, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Stats } from '@react-three/drei';
-import { Environment }      from './Environment';
-import { Lighting }         from './Lighting';
-import { Ground }           from './Ground';
-import { Road }             from './Road';
-import { CameraController } from './CameraController';
-import { ModelManager }     from './ModelManager';
+import { Environment }              from './Environment';
+import { Lighting }                 from './Lighting';
+import { RoadAnimationController }  from './RoadAnimationController';
+import { CameraController }         from './CameraController';
+import { ModelManager }             from './ModelManager';
 import '../styles/scene.css';
 
 /* ── Canvas config — defined outside component so reference is stable ── */
@@ -18,11 +17,10 @@ const StaticScene = memo(() => (
   <>
     <Environment />
     <Lighting />
-    <Suspense fallback={null}>
-      <Ground />
-      <Road />
-    </Suspense>
     <CameraController />
+    <Suspense fallback={null}>
+      <RoadAnimationController />
+    </Suspense>
   </>
 ));
 StaticScene.displayName = 'StaticScene';

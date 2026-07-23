@@ -1,14 +1,9 @@
-- [ ] Inspect current Three.js live perception pipeline (already inspected Scene3D, ModelManager, perception utils, Dashboard, Road, CameraController)
-- [ ] Rewrite `frontend/src/scenes/ModelManager.jsx`:
-  - [ ] Memoize pool slots so they do not re-render on each poll
-  - [ ] Cache GLB clones per model type and swap imperatively without remounting
-  - [ ] Implement nearest-neighbor assignment to keep stable instances across frames
-  - [ ] Fix image-space → world-space coordinate mapping using `bbox.frameW/frameH` and correct Z sign, with clamping to road bounds
-  - [ ] Smooth movement via lerp in `useFrame`
-  - [ ] Add per-slot error handling fallback placeholder without breaking canvas
-- [ ] Run frontend dev build/test to verify:
-  - [ ] Canvas never remounts
-  - [ ] Multiple simultaneous detections render simultaneously
-  - [ ] Objects persist (no blanking) across polls
-  - [ ] Movement direction matches webcam motion
-  - [ ] No React duplicate keys / no scene recreation
+﻿# Camera-Driven Dynamic Road Animation - Implementation Progress
+
+## Steps
+
+- [x] Step 0: Analyze codebase architecture (Scene3D, Road, Ground, CameraController, ModelManager)
+- [x] Step 1: Create comprehensive plan and get user approval
+- [x] Step 2: Create `frontend/src/scenes/RoadAnimationController.jsx` (NEW FILE)
+- [x] Step 3: Modify `frontend/src/scenes/Scene3D.jsx` (replace Ground + Road with RoadAnimationController)
+- [x] Step 4: Verify implementation (build check)
