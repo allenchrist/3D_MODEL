@@ -1,9 +1,7 @@
-﻿# Camera-Driven Dynamic Road Animation - Implementation Progress
+﻿# Road Visibility Fix TODO
 
-## Steps
-
-- [x] Step 0: Analyze codebase architecture (Scene3D, Road, Ground, CameraController, ModelManager)
-- [x] Step 1: Create comprehensive plan and get user approval
-- [x] Step 2: Create `frontend/src/scenes/RoadAnimationController.jsx` (NEW FILE)
-- [x] Step 3: Modify `frontend/src/scenes/Scene3D.jsx` (replace Ground + Road with RoadAnimationController)
-- [x] Step 4: Verify implementation (build check)
+- [ ] Update `frontend/src/scenes/Road.jsx` for strong visibility (contrast + elevation)
+- [ ] Update `frontend/src/scenes/Ground.jsx` to reduce road blending
+- [ ] Update `frontend/src/scenes/CameraController.jsx` framing safety for road view
+- [ ] Run frontend build verification (`npx vite build`)
+- [ ] Mark task complete
