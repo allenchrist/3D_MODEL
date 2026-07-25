@@ -72,14 +72,29 @@ class DetectionsResponse(BaseModel):
 
 
 # ── Live (webcam) response ──────────────────────────────────
+class EgoVehiclePose(BaseModel):
+    """
+    Ego vehicle pose estimated from visual odometry.
+    """
+    x: float = Field(0.0, description="Ego vehicle X position in world units")
+    y: float = Field(0.0, description="Ego vehicle Y position in world units")
+    z: float = Field(0.0, description="Ego vehicle Z position in world units")
+    yaw: float = Field(0.0, description="Ego vehicle yaw in degrees")
+
+
 class LiveDetectionsResponse(BaseModel):
     """
     Response schema for GET /detections/live.
-    Returns the single latest frame from the webcam DetectionStore.
+    Returns the single latest frame from the webcam DetectionStore
+    including ego vehicle pose from visual odometry.
     """
-    frame:   int             = Field(..., description="Monotonically increasing frame counter")
-    frame_w: int             = Field(640, description="Webcam frame width in pixels")
-    frame_h: int             = Field(480, description="Webcam frame height in pixels")
+    frame: int = Field(..., description="Monotonically increasing frame counter")
+    frame_w: int = Field(640, description="Webcam frame width in pixels")
+    frame_h: int = Field(480, description="Webcam frame height in pixels")
+    ego_vehicle: EgoVehiclePose = Field(
+        default_factory=EgoVehiclePose,
+        description="Estimated ego vehicle pose from visual odometry"
+    )
     objects: List[Detection] = Field(default_factory=list, description="Detected objects in the latest frame")
 
 

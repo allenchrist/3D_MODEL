@@ -40,6 +40,23 @@ const MOTION_SOURCES = {
 /* ── Default motion source ──────────────────────────────────── */
 const DEFAULT_SOURCE = 'simulated';
 
+/* ── Road boundary constants (must match Road.jsx) ──────────── */
+const ROAD_BOUNDS = {
+  minX: -30 / 2 + 1.5,   // -13.5
+  maxX: 30 / 2 - 1.5,    //  13.5
+  minZ: -500 / 2 + 2,    // -248
+  maxZ: 500 / 2 - 2,     //  248
+};
+
+/* ── Auto-reset safety constants ────────────────────────────── */
+const SAFE_DISTANCE_FROM_ORIGIN = 40; // If car exceeds this distance from origin, auto-reset
+const RESET_LERP_SPEED = 0.08;        // How fast to slide back to origin (lower = smoother)
+
+/** Clamp a value between min and max */
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
 /**
  * Simulated motion source — keyboard-driven for development.
  * Arrow keys / WASD control the ego vehicle.
@@ -236,8 +253,49 @@ export function useEgoMotion(options = {}) {
     };
   }, [initialSource, setMotionSource]);
 
+  // Reset position to origin
+  const resetPosition = useCallback(() => {
+    positionRef.current.set(0, 0, 0);
+    rotationRef.current = 0;
+    velocityRef.current = { x: 0, z: 0 };
+  }, []);
+
+  // Apply boundary clamping — prevents car from driving off the road
+  const clampPosition = useCallback(() => {
+    const pos = positionRef.current;
+    
+    // First: clamp to road bounds
+    const clampedX = clamp(pos.x, ROAD_BOUNDS.minX, ROAD_BOUNDS.maxX);
+    const clampedZ = clamp(pos.z, ROAD_BOUNDS.minZ, ROAD_BOUNDS.maxZ);
+
+    if (clampedX !== pos.x || clampedZ !== pos.z) {
+      console.warn(`[useEgoMotion] Position clamped: (${pos.x.toFixed(1)}, ${pos.z.toFixed(1)}) → (${clampedX.toFixed(1)}, ${clampedZ.toFixed(1)})`);
+      pos.x = clampedX;
+      pos.z = clampedZ;
+    }
+
+    // Second: AUTO-RESET if too far from origin (this is the CRITICAL safety net)
+    const distFromOrigin = Math.sqrt(pos.x * pos.x + pos.z * pos.z);
+    if (distFromOrigin > SAFE_DISTANCE_FROM_ORIGIN) {
+      console.warn(`[useEgoMotion] AUTO-RESET: Car ${distFromOrigin.toFixed(1)} units from origin — resetting to center`);
+      // Smoothly lerp back toward origin
+      pos.x *= (1 - RESET_LERP_SPEED);
+      pos.z *= (1 - RESET_LERP_SPEED);
+      
+      // If still too far after lerp, hard reset
+      const newDist = Math.sqrt(pos.x * pos.x + pos.z * pos.z);
+      if (newDist > SAFE_DISTANCE_FROM_ORIGIN * 1.5) {
+        pos.x = 0;
+        pos.z = 0;
+        rotationRef.current = 0;
+        console.warn(`[useEgoMotion] HARD RESET: Position forced to origin`);
+      }
+    }
+  }, []);
+
   // Each frame, read velocity from active source and update position
   // This is called from useFrame in the EgoVehicle component
+  // After updating position, immediately clamp to road bounds
   const updatePosition = useCallback((deltaTime = 1/60) => {
     if (!activeSourceRef.current || !activeSourceRef.current.isActive) return;
 
@@ -269,14 +327,10 @@ export function useEgoMotion(options = {}) {
       positionRef.current.x += moveX;
       positionRef.current.z += moveZ;
     }
-  }, []);
 
-  // Reset position to origin
-  const resetPosition = useCallback(() => {
-    positionRef.current.set(0, 0, 0);
-    rotationRef.current = 0;
-    velocityRef.current = { x: 0, z: 0 };
-  }, []);
+    // CLAMP position to road bounds — THIS prevents the road from disappearing
+    clampPosition();
+  }, [clampPosition]);
 
   return {
     velocityRef,
@@ -288,6 +342,7 @@ export function useEgoMotion(options = {}) {
     error,
     updatePosition,
     resetPosition,
+    clampPosition,
     MOTION_SOURCES,
   };
 }

@@ -15,6 +15,7 @@ Usage (standalone test):
 import threading
 import cv2
 from ultralytics import YOLO
+from visual_odometry.visual_odometry import VisualOdometry
 
 
 class WebcamDetector:
@@ -25,6 +26,7 @@ class WebcamDetector:
         self.camera_index = camera_index
         self._thread: threading.Thread | None = None
         self._stop        = threading.Event()
+        self.vo = VisualOdometry()
 
     # ── Public API ───────────────────────────────────────────
     def start(self, store) -> None:
@@ -82,6 +84,7 @@ class WebcamDetector:
                         last_good_frame_number,
                         frame_w=last_good_w,
                         frame_h=last_good_h,
+                        ego_vehicle=self.vo.get_pose(),
                     )
                     print("[DEBUG] DetectionStore kept last good detections (fail-soft)")
                 else:
@@ -91,6 +94,7 @@ class WebcamDetector:
                         0,
                         frame_w=last_good_w,
                         frame_h=last_good_h,
+                        ego_vehicle=self.vo.get_pose(),
                     )
 
                 # Periodically try to reopen the webcam after repeated failures
@@ -120,10 +124,12 @@ class WebcamDetector:
 
             h, w = frame.shape[:2]
 
+            # Process the SAME frame through YOLO and Visual Odometry
             t0 = time.perf_counter()
             results = self.model(frame, conf=0.25, verbose=False)
+            ego_pose = self.vo.update(frame)
             inference_ms = (time.perf_counter() - t0) * 1000
-            print(f"[DEBUG] YOLO inference completed — {inference_ms:.1f} ms")
+            print(f"[DEBUG] YOLO+VO completed — {inference_ms:.1f} ms | Ego: {ego_pose}")
 
             objects = []
             for box in results[0].boxes:
@@ -153,7 +159,13 @@ class WebcamDetector:
             last_good_h = h
             last_good_frame_number = frame_number
 
-            store.update(objects, frame_number, frame_w=w, frame_h=h)
+            store.update(
+                objects,
+                frame_number,
+                frame_w=w,
+                frame_h=h,
+                ego_vehicle=ego_pose,
+            )
             print("[DEBUG] DetectionStore updated")
 
         cap.release()

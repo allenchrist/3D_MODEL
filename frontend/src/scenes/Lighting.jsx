@@ -16,14 +16,14 @@ export const Lighting = memo(() => (
       intensity={1.2}
       color="#e8f0ff"
       castShadow
-      shadow-mapSize-width={2048}
-      shadow-mapSize-height={2048}
+      shadow-mapSize-width={4096}
+      shadow-mapSize-height={4096}
       shadow-camera-near={0.5}
-      shadow-camera-far={200}
-      shadow-camera-left={-60}
-      shadow-camera-right={60}
-      shadow-camera-top={60}
-      shadow-camera-bottom={-60}
+      shadow-camera-far={500}
+      shadow-camera-left={-200}
+      shadow-camera-right={200}
+      shadow-camera-top={200}
+      shadow-camera-bottom={-200}
     />
 
     {/* Cyan accent fill — automotive HMI aesthetic, future: V2V highlight */}

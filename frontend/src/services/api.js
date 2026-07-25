@@ -14,7 +14,9 @@
 import axios from 'axios';
 
 /* ── Base configuration ─────────────────────────────────────── */
-const BASE_URL    = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
+const BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ??
+  'http://127.0.0.1:8001';
 const API_TIMEOUT = 8000;
 
 const apiClient = axios.create({

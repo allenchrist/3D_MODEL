@@ -89,15 +89,23 @@ export function transformApiFrame(frame) {
   const frameW = frame.frame_w ?? 640;
   const frameH = frame.frame_h ?? 480;
 
-  return frame.objects.map((det, idx) => {
-    // API serialises "class" as "class" in JSON; Pydantic alias keeps it
-    const rawClass = det.class ?? det.cls ?? 'unknown';
-    const type     = CLASS_TYPE_MAP[rawClass.toLowerCase()] ?? 'Unknown';
+  return frame.objects
+    .map((det, idx) => {
+      // API serialises "class" as "class" in JSON; Pydantic alias keeps it
+      const rawClass = det.class ?? det.cls ?? 'unknown';
+      const type     = CLASS_TYPE_MAP[rawClass.toLowerCase()] ?? 'Unknown';
 
-    const { x1, y1, x2, y2 } = det.bbox;
+      const bbox = det?.bbox;
+      const x1 = bbox?.x1;
+      const y1 = bbox?.y1;
+      const x2 = bbox?.x2;
+      const y2 = bbox?.y2;
 
-    // Estimate distance from bbox height: taller = closer
-    const bboxHeight = Math.abs(y2 - y1);
+      // Skip malformed detections to avoid crashing rendering
+      if (![x1, y1, x2, y2].every((v) => Number.isFinite(v))) return null;
+
+      // Estimate distance from bbox height: taller = closer
+      const bboxHeight = Math.abs(y2 - y1);
     const distanceM  = clamp(
       bboxHeight > 0 ? 1000 / (bboxHeight * PIXELS_PER_METRE) : 50,
       1,
@@ -112,18 +120,19 @@ export function transformApiFrame(frame) {
       det.confidence >= CONF_THRESHOLD.MEDIUM ? 'Caution'     :
                                                 'Lost Signal';
 
-    return {
-      id:         `${rawClass}-${idx}`,
-      type,
-      name:       `${type} ${String(idx + 1).padStart(2, '0')}`,
-      distanceM,
-      speedMps,
-      direction:  DIRECTIONS[idx % DIRECTIONS.length],
-      confidence: det.confidence,
-      status,
-      // Raw YOLO bbox preserved for Scene3D 3D box rendering
-      bbox:       { x1, y1, x2, y2, frameW, frameH },
-      rawClass,
-    };
-  });
+      return {
+        id:         `${rawClass}-${idx}`,
+        type,
+        name:       `${type} ${String(idx + 1).padStart(2, '0')}`,
+        distanceM,
+        speedMps,
+        direction:  DIRECTIONS[idx % DIRECTIONS.length],
+        confidence: det.confidence,
+        status,
+        // Raw YOLO bbox preserved for Scene3D 3D box rendering
+        bbox:       { x1, y1, x2, y2, frameW, frameH },
+        rawClass,
+      };
+    })
+    .filter(Boolean);
 }

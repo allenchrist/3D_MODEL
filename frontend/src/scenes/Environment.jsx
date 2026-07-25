@@ -3,7 +3,7 @@ import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
 const BG_COLOR  = new THREE.Color('#0B0F14');
-const FOG       = new THREE.Fog('#0B0F14', 40, 130);
+const FOG       = new THREE.Fog('#0B0F14', 80, 350);
 
 export const Environment = memo(() => {
   const { scene } = useThree();

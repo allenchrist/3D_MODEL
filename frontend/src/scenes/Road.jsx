@@ -13,12 +13,20 @@ import React, { memo, useMemo } from 'react';
 import * as THREE from 'three';
 
 /* ── Road constants ─────────────────────────────────────────── */
-const ROAD_LENGTH = 300;
-const ROAD_WIDTH  = 14;
+const ROAD_LENGTH = 500;
+const ROAD_WIDTH  = 30;
 const LANE_WIDTH  = 3.5;
 const LANE_COUNT  = 4;
 const DASH_LEN    = 3.0;
 const DASH_GAP    = 3.0;
+
+/* ── Exported boundary constants for position clamping ──────── */
+export const ROAD_BOUNDS = {
+  minX: -ROAD_WIDTH / 2 + 1.5,   // leave 1.5m margin from edge
+  maxX: ROAD_WIDTH / 2 - 1.5,
+  minZ: -ROAD_LENGTH / 2 + 2,
+  maxZ: ROAD_LENGTH / 2 - 2,
+};
 
 /* ── Canvas texture dimensions (power-of-2 for perf) ────────── */
 const TEX_W = 1024;

@@ -13,8 +13,8 @@ import React, { memo, useMemo } from 'react';
 import * as THREE from 'three';
 
 /* ── Constants ──────────────────────────────────────────────── */
-const GROUND_SIZE = 300;
-const GRID_DIVS   = 60;
+const GROUND_SIZE = 600;
+const GRID_DIVS   = 120;
 const TEX_W       = 1024;
 const TEX_H       = 1024;
 

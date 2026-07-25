@@ -27,6 +27,7 @@ const SceneContent = memo(({
   detectedObjects,
   egoMotion,
   carRef,
+  egoPose,
 }) => {
   const { velocityRef, positionRef, rotationRef, updatePosition } = egoMotion;
 
@@ -55,6 +56,7 @@ const SceneContent = memo(({
         rotationRef={rotationRef}
         carRef={carRef}
         updatePosition={updatePosition}
+        egoPose={egoPose}
       />
     </>
   );
@@ -89,6 +91,7 @@ HudOverlay.displayName = 'HudOverlay';
 /* ── Scene3D ────────────────────────────────────────────────── */
 export const Scene3D = memo(({
   detectedObjects = [],
+  egoPose         = null,
   isLive          = false,
   showStats       = false,
 }) => {
@@ -140,6 +143,7 @@ export const Scene3D = memo(({
           detectedObjects={detectedObjects}
           egoMotion={egoMotion}
           carRef={carRef}
+          egoPose={egoPose}
         />
 
         {showStats && <Stats />}

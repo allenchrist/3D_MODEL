@@ -5,12 +5,6 @@
  * a natural third-person perspective as the vehicle moves through the
  * static 3D environment.
  *
- * ╔══════════════════════════════════════════════════════════════╗
- * ║  Replaces OrbitControls with a dedicated follow camera.     ║
- * ║  The camera tracks the ego vehicle's position with smooth   ║
- * ║  damping for a cinematic feel.                              ║
- * ╚══════════════════════════════════════════════════════════════╝
- *
  * Behavior:
  *   - Camera stays behind and above the ego vehicle
  *   - Smoothly interpolates position for natural movement
@@ -23,24 +17,86 @@
  *   - followDistance: distance behind the car (default: 20)
  *   - followHeight: height above the car (default: 12)
  *   - dampingFactor: smoothness of camera movement (default: 0.08)
- *
- * Future:
- *   - Add configurable camera presets (chase, top-down, cockpit)
- *   - Add collision detection to prevent clipping through ground
- *   - Add smooth transitions when switching camera modes
  */
-import { memo, useEffect } from 'react';
-import { useThree } from '@react-three/fiber';
+import { memo, useRef } from 'react';
+import { useThree, useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
 
-export const CameraController = memo(() => {
+const DEFAULT_DISTANCE = 20;
+const DEFAULT_HEIGHT   = 12;
+const DAMPING          = 0.08;
+
+/* ── Safety limits ──────────────────────────────────────────── */
+const MAX_CAMERA_DISTANCE_FROM_ORIGIN = 150; // Hard limit: camera NEVER exceeds this distance
+const ORIGIN_PULLBACK_THRESHOLD       = 60;  // Start pulling camera back toward origin at this distance
+
+export const CameraController = memo(({
+  carRef,
+  followDistance = DEFAULT_DISTANCE,
+  followHeight   = DEFAULT_HEIGHT,
+  dampingFactor  = DAMPING,
+}) => {
   const { camera } = useThree();
+  const smoothPos = useRef(camera.position.clone());
 
-  useEffect(() => {
-    // Stable fixed camera so road + ego vehicle are always visible
-    camera.position.set(0, 16, 26);
-    camera.lookAt(0, 0, 0);
-    camera.updateProjectionMatrix();
-  }, [camera]);
+  useFrame(() => {
+    if (!carRef?.current) {
+      // No car yet — keep camera at default position looking at origin
+      camera.position.set(0, followHeight, followDistance);
+      camera.lookAt(0, 0, 0);
+      return;
+    }
+
+    // Get the car's world position
+    const carPos = new THREE.Vector3();
+    carRef.current.getWorldPosition(carPos);
+
+    // Calculate desired camera position: behind and above the car
+    // Car faces -Z by default, so "behind" is +Z relative to car's rotation
+    const carQuat = new THREE.Quaternion();
+    carRef.current.getWorldQuaternion(carQuat);
+    const behind = new THREE.Vector3(0, 0, followDistance).applyQuaternion(carQuat);
+    const targetPos = new THREE.Vector3(
+      carPos.x + behind.x,
+      carPos.y + followHeight,
+      carPos.z + behind.z
+    );
+
+    // ── SAFETY 1: Hard limit on camera distance from origin ──
+    const camDistFromOrigin = Math.sqrt(targetPos.x * targetPos.x + targetPos.z * targetPos.z);
+    if (camDistFromOrigin > MAX_CAMERA_DISTANCE_FROM_ORIGIN) {
+      // Force camera position to be at max distance from origin, in same direction
+      const angle = Math.atan2(targetPos.x, targetPos.z);
+      targetPos.x = Math.sin(angle) * MAX_CAMERA_DISTANCE_FROM_ORIGIN;
+      targetPos.z = Math.cos(angle) * MAX_CAMERA_DISTANCE_FROM_ORIGIN;
+      targetPos.y = followHeight;
+    }
+
+    // ── SAFETY 2: Pull camera look-at toward origin if car is far ──
+    const carDistFromOrigin = Math.sqrt(carPos.x * carPos.x + carPos.z * carPos.z);
+
+    if (carDistFromOrigin > MAX_CAMERA_DISTANCE_FROM_ORIGIN * 0.8) {
+      // Car is very far — look at origin directly (guarantees road is visible)
+      camera.lookAt(0, 0, 0);
+    } else if (carDistFromOrigin > ORIGIN_PULLBACK_THRESHOLD) {
+      // Car is moderately far — smoothly blend look-at between car and origin
+      const blendFactor = (carDistFromOrigin - ORIGIN_PULLBACK_THRESHOLD) / 
+                          (MAX_CAMERA_DISTANCE_FROM_ORIGIN * 0.8 - ORIGIN_PULLBACK_THRESHOLD);
+      const lookTarget = new THREE.Vector3(
+        carPos.x * (1 - blendFactor),
+        carPos.y + 1,
+        carPos.z * (1 - blendFactor)
+      );
+      camera.lookAt(lookTarget.x, lookTarget.y, lookTarget.z);
+    } else {
+      // Normal: look at the car
+      camera.lookAt(carPos.x, carPos.y + 1, carPos.z);
+    }
+
+    // Smoothly interpolate camera position
+    smoothPos.current.lerp(targetPos, dampingFactor);
+    camera.position.copy(smoothPos.current);
+  });
 
   return null;
 });

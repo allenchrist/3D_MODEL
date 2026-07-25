@@ -62,7 +62,12 @@ const DetectedObject = memo(({ object }) => {
   const cfg   = SHAPE_REGISTRY[type] ?? DEFAULT_SHAPE;
   const { Component: ShapeComponent, scale, rotY } = cfg;
   const color = TYPE_COLORS[type]  ?? TYPE_COLORS.Unknown;
-  const tgt   = bboxToWorld(bbox, type);
+
+  const safeBbox = bbox && typeof bbox === 'object' ? bbox : null;
+  const tgt = bboxToWorld(
+    safeBbox ?? { x1: NaN, y1: NaN, x2: NaN, y2: NaN, frameW: 0, frameH: 0 },
+    type
+  );
 
   const groupRef = useRef(null);
   const curPos   = useRef(new THREE.Vector3(tgt.x, tgt.y, tgt.z));

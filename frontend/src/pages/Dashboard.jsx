@@ -78,7 +78,7 @@ export function Dashboard() {
   const fps           = useFps();
   const systemMetrics = useSystemMetrics();
 
-  const { objects, connectionStatus, currentFrame, isLive } = usePerceptionData();
+  const { objects, egoVehicle, connectionStatus, currentFrame, isLive } = usePerceptionData();
 
   const [activePage,   setActivePage]   = useState('Dashboard');
   const [latencyMs,    setLatencyMs]    = useState(INITIAL_LATENCY);
@@ -148,6 +148,7 @@ export function Dashboard() {
             */}
             <Scene3D
               detectedObjects={objects}
+              egoPose={egoVehicle}
               isLive={isLive}
             />
           </div>

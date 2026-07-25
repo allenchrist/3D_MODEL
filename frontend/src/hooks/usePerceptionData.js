@@ -126,6 +126,7 @@ export function usePerceptionData() {
   const [connectionStatus, setConnectionStatus] = useState('Connecting');
   const [currentFrame, setCurrentFrame] = useState(0);
   const [isLive, setIsLive] = useState(false);
+  const [egoVehicle, setEgoVehicle] = useState({ x: 0, y: 0, z: 0, yaw: 0 });
 
   const mountedRef = useRef(true);
   const timerRef = useRef(null);
@@ -166,6 +167,14 @@ export function usePerceptionData() {
 
         retryAttemptRef.current = 0;
         nextRetryMsRef.current = RETRY_MS_BASE;
+
+        const ego = data?.ego_vehicle ?? { x: 0, y: 0, z: 0, yaw: 0 };
+        setEgoVehicle({
+          x: Number(ego.x ?? 0),
+          y: Number(ego.y ?? 0),
+          z: Number(ego.z ?? 0),
+          yaw: Number(ego.yaw ?? 0),
+        });
 
         const uiObjectsAll = transformApiFrame({
           frame: data.frame,
@@ -298,5 +307,8 @@ export function usePerceptionData() {
 
   const totalFrames = currentFrame;
 
-  return useMemo(() => ({ objects, connectionStatus, currentFrame, totalFrames, isLive }), [objects, connectionStatus, currentFrame, totalFrames, isLive]);
+  return useMemo(
+    () => ({ objects, egoVehicle, connectionStatus, currentFrame, totalFrames, isLive }),
+    [objects, egoVehicle, connectionStatus, currentFrame, totalFrames, isLive]
+  );
 }

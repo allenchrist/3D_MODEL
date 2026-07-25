@@ -111,6 +111,7 @@ def get_live_detections() -> LiveDetectionsResponse:
         frame=data["frame"],
         frame_w=data["frame_w"],
         frame_h=data["frame_h"],
+        ego_vehicle=data.get("ego_vehicle", {"x": 0.0, "y": 0.0, "z": 0.0, "yaw": 0.0}),
         objects=data["objects"],
     )
 
