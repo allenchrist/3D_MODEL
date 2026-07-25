@@ -26,7 +26,7 @@
  *   - carRef: ref exposed to parent for camera following
  *   - updatePosition: function to call each frame to update position refs
  */
-import React, { memo, useRef } from 'react';
+import React, { memo, useRef, useCallback } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { Car } from './VehicleShapes';
@@ -71,8 +71,12 @@ export const EgoVehicle = memo(({
   const smoothPos = useRef(INITIAL_POS.clone());
   const smoothRot = useRef(0);
 
-  // Expose groupRef to parent for camera following
-  if (carRef) carRef.current = groupRef;
+  // Expose the actual Three.js group to parent for camera following
+  // Use a callback ref to ensure carRef.current is the Three.js group, not the React ref wrapper
+  const setGroupRef = useCallback((node) => {
+    groupRef.current = node;
+    if (carRef) carRef.current = node;
+  }, [carRef]);
 
   useFrame((_, delta) => {
     const group = groupRef.current;
@@ -169,7 +173,7 @@ export const EgoVehicle = memo(({
   });
 
   return (
-    <group ref={groupRef} name="ego-vehicle" position={INITIAL_POS}>
+    <group ref={setGroupRef} name="ego-vehicle" position={INITIAL_POS}>
       {/* Car shape scaled to size */}
       <group scale={[1, 1, 1]} rotation={[0, Math.PI, 0]}>
         <Car />

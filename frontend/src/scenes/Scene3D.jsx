@@ -96,7 +96,8 @@ export const Scene3D = memo(({
   showStats       = false,
 }) => {
   // Ego vehicle motion system — modular motion source abstraction
-  const egoMotion = useEgoMotion({ initialSource: 'simulated' });
+  // Defaults to 'device' (accelerometer) for automatic real-time movement
+  const egoMotion = useEgoMotion();
   const carRef = useRef(null);
 
   const onCreated = useCallback(({ gl, scene, camera }) => {

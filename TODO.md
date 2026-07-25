@@ -18,7 +18,7 @@
 - [x] EgoVehicle.jsx: Added ROAD_BOUNDS, clamp on target position + final smooth position + VO pose
 - [x] CameraController.jsx: MAX_CAMERA_DISTANCE_FROM_ORIGIN=180, ORIGIN_PULLBACK_THRESHOLD=120
 
-### ✅ Completed - CRITICAL FIXES
+### ✅ Completed - All Fixes Verified
 - [x] **useEgoMotion.js: Add AUTO-RESET when position exceeds safe distance**
   - Added SAFE_DISTANCE_FROM_ORIGIN=40, RESET_LERP_SPEED=0.08
   - In clampPosition(): if distance > 40, smooth lerp back to origin
@@ -36,6 +36,9 @@
 - [x] **Ground.jsx** - Already had GROUND_SIZE=600, GRID_DIVS=120
 - [x] **Environment.jsx** - Already had fog (80, 350)
 - [x] **Lighting.jsx** - Already had expanded shadow camera bounds
+
+- [x] **CameraController.jsx**: Added type guard `isValidCar` check — prevents `getWorldPosition is not a function` crash
+- [x] **EgoVehicle.jsx**: Added `useCallback` import + callback ref pattern — ensures Three.js group is properly exposed
 
 ## Progress
 - Previous implementation: Good position clamping within road bounds

@@ -40,8 +40,14 @@ export const CameraController = memo(({
   const smoothPos = useRef(camera.position.clone());
 
   useFrame(() => {
-    if (!carRef?.current) {
-      // No car yet — keep camera at default position looking at origin
+    // ── SAFETY: Guard against carRef being null, undefined, or not a Three.js Object3D ──
+    const carGroup = carRef?.current;
+    const isValidCar = carGroup && 
+      typeof carGroup.getWorldPosition === 'function' &&
+      typeof carGroup.getWorldQuaternion === 'function';
+
+    if (!isValidCar) {
+      // No valid car yet — keep camera at default position looking at origin
       camera.position.set(0, followHeight, followDistance);
       camera.lookAt(0, 0, 0);
       return;
@@ -49,12 +55,12 @@ export const CameraController = memo(({
 
     // Get the car's world position
     const carPos = new THREE.Vector3();
-    carRef.current.getWorldPosition(carPos);
+    carGroup.getWorldPosition(carPos);
 
     // Calculate desired camera position: behind and above the car
     // Car faces -Z by default, so "behind" is +Z relative to car's rotation
     const carQuat = new THREE.Quaternion();
-    carRef.current.getWorldQuaternion(carQuat);
+    carGroup.getWorldQuaternion(carQuat);
     const behind = new THREE.Vector3(0, 0, followDistance).applyQuaternion(carQuat);
     const targetPos = new THREE.Vector3(
       carPos.x + behind.x,

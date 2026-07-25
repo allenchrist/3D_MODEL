@@ -26,6 +26,8 @@
  */
 import { useState, useRef, useCallback, useEffect } from 'react';
 import * as THREE from 'three';
+import { useDeviceMotion } from './useDeviceMotion';
+import { useCameraMotion } from './useCameraMotion';
 
 /* ── Motion source registry ─────────────────────────────────── */
 const MOTION_SOURCES = {
@@ -38,7 +40,7 @@ const MOTION_SOURCES = {
 };
 
 /* ── Default motion source ──────────────────────────────────── */
-const DEFAULT_SOURCE = 'simulated';
+const DEFAULT_SOURCE = 'device';
 
 /* ── Road boundary constants (must match Road.jsx) ──────────── */
 const ROAD_BOUNDS = {
@@ -208,11 +210,15 @@ export function useEgoMotion(options = {}) {
   // Shared velocity ref that Three.js components read from
   const velocityRef = useRef({ x: 0, z: 0 });
 
+  // Initialize real motion sources
+  const deviceMotion = useDeviceMotion();
+  const cameraMotion = useCameraMotion();
+
   if (!sourcesRef.current) {
     sourcesRef.current = {
       [MOTION_SOURCES.simulated]: createSimulatedSource(),
-      [MOTION_SOURCES.camera]: createCameraSource(null), // Will be wired when camera hook is available
-      [MOTION_SOURCES.device]: createDeviceSource(null),  // Will be wired when device hook is available
+      [MOTION_SOURCES.camera]: createCameraSource(cameraMotion),
+      [MOTION_SOURCES.device]: createDeviceSource(deviceMotion),
     };
   }
 
