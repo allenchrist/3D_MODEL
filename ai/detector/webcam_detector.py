@@ -1,7 +1,7 @@
 """
 webcam_detector.py — Live webcam perception.
 
-Opens the default camera (index 0), runs YOLO on every frame,
+Opens an IP camera stream, runs YOLO on every frame,
 and pushes detections into the shared DetectionStore.
 
 The loop runs forever in a daemon thread started by server.py.
@@ -19,11 +19,11 @@ from visual_odometry.visual_odometry import VisualOdometry
 
 
 class WebcamDetector:
-    def __init__(self, model_path: str = "yolo11n.pt", camera_index: int = 0) -> None:
+    def __init__(self, model_path: str = "yolo11n.pt", camera_url: str = "http://192.168.1.8:8080/video") -> None:
         print(f"[DEBUG] Loading YOLO model: {model_path}")
         self.model        = YOLO(model_path)
         print("[DEBUG] YOLO model loaded")
-        self.camera_index = camera_index
+        self.camera_url   = camera_url
         self._thread: threading.Thread | None = None
         self._stop        = threading.Event()
         self.vo = VisualOdometry()
@@ -50,8 +50,8 @@ class WebcamDetector:
     # ── Detection loop ───────────────────────────────────────
     def _loop(self, store) -> None:
         import time
-        print("[DEBUG] Opening webcam...")
-        cap = cv2.VideoCapture(self.camera_index)
+        print(f"[DEBUG] Opening IP camera stream: {self.camera_url}")
+        cap = cv2.VideoCapture(self.camera_url)
         if not cap.isOpened():
             print("[DEBUG] ERROR: Cannot open webcam")
             return
@@ -68,7 +68,10 @@ class WebcamDetector:
 
         # If the camera occasionally fails (MSMF/USB hiccups), keep the last
         # good detections so the frontend scene remains stable.
+        # After MAX_FAILURES consecutive failures, clear detections so the
+        # frontend doesn't show stale objects when the camera is actually blocked.
         consecutive_failures = 0
+        MAX_FAILURES_BEFORE_CLEAR = 10  # ~1.5 seconds at 160ms poll + processing
 
         while not self._stop.is_set():
             ret, frame = cap.read()
@@ -76,9 +79,20 @@ class WebcamDetector:
                 consecutive_failures += 1
                 print(f"[WebcamDetector] frame read failed — retrying (fail #{consecutive_failures})")
 
-                # Fail-soft: keep previous detections + frame dimensions.
-                # (No inference performed on a broken frame.)
-                if last_good_frame_number > 0:
+                # After too many consecutive failures, clear stale detections
+                # so the frontend doesn't show phantom objects.
+                if consecutive_failures >= MAX_FAILURES_BEFORE_CLEAR:
+                    last_good_objects = []
+                    last_good_frame_number = 0
+                    store.update(
+                        [],
+                        0,
+                        frame_w=last_good_w,
+                        frame_h=last_good_h,
+                        ego_vehicle=self.vo.get_pose(),
+                    )
+                    print("[DEBUG] DetectionStore cleared — too many consecutive failures")
+                elif last_good_frame_number > 0:
                     store.update(
                         last_good_objects,
                         last_good_frame_number,
@@ -106,7 +120,7 @@ class WebcamDetector:
 
                     print("[WebcamDetector] reopening webcam...")
                     time.sleep(0.25)
-                    cap = cv2.VideoCapture(self.camera_index)
+                    cap = cv2.VideoCapture(self.camera_url)
                     if not cap.isOpened():
                         print("[WebcamDetector] ERROR: Cannot reopen webcam yet")
                         time.sleep(0.75)
@@ -178,7 +192,7 @@ if __name__ == "__main__":
     sys.path.insert(0, ".")          # run from ai/
     from api.store import store as _store
 
-    detector = WebcamDetector()
+    detector = WebcamDetector(camera_url="http://192.168.1.8:8080/video")
     detector.start(_store)
 
     try:
